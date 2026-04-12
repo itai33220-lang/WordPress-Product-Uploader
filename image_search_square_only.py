@@ -107,13 +107,9 @@ def search_google_images_square_only(query, api_key, search_engine_id, num_resul
             'cx': search_engine_id,
             'q': full_query,
             'searchType': 'image',
-            'num': 10,  # Get extra to filter
-            'imgSize': 'large',
-            'imgType': 'photo',
+            'num': 10,
             'safe': 'active',
-            'imgDominantColor': 'white',
             'fileType': 'jpg,png',
-            'imgColorType': 'color',
         }
         
         response = requests.get(url, params=params, timeout=10)
@@ -124,36 +120,29 @@ def search_google_images_square_only(query, api_key, search_engine_id, num_resul
             if 'items' in data:
                 square_images = []
                 
-                print(f"   Found {len(data['items'])} total images")
-                print(f"   Filtering for square images...\n")
-                
+                print(f"   Found {len(data['items'])} total images (will crop to square)\n")
+
                 for idx, item in enumerate(data['items'], 1):
                     if 'link' not in item:
                         continue
-                    
+
                     width = item.get('image', {}).get('width', 0)
                     height = item.get('image', {}).get('height', 0)
-                    
-                    print(f"   Image {idx}: {width}x{height} → ", end='')
-                    
-                    if is_square_image(width, height):
-                        print("✅ SQUARE - ACCEPTED")
-                        square_images.append({
-                            'url': item['link'],
-                            'title': item.get('title', ''),
-                            'snippet': item.get('snippet', ''),
-                            'context': item.get('image', {}).get('contextLink', ''),
-                            'width': width,
-                            'height': height,
-                        })
-                        
-                        if len(square_images) >= num_results:
-                            break
-                    else:
-                        aspect = width / height if height > 0 else 0
-                        print(f"❌ NOT SQUARE (ratio: {aspect:.2f}) - REJECTED")
-                
-                print(f"\n   ✅ Found {len(square_images)} square images")
+                    print(f"   Image {idx}: {width}x{height} → ✅ ACCEPTED")
+
+                    square_images.append({
+                        'url': item['link'],
+                        'title': item.get('title', ''),
+                        'snippet': item.get('snippet', ''),
+                        'context': item.get('image', {}).get('contextLink', ''),
+                        'width': width,
+                        'height': height,
+                    })
+
+                    if len(square_images) >= num_results:
+                        break
+
+                print(f"\n   ✅ Accepted {len(square_images)} images")
                 return square_images
             else:
                 print("   ❌ No results found")
@@ -193,11 +182,8 @@ def download_image(url, timeout=10):
 
 
 def make_square_image(img, size=500):
-    """Convert image to square with WHITE background"""
-    # Create WHITE background
-    square = Image.new('RGB', (size, size), (255, 255, 255))
-    
-    # Handle different image modes
+    """Fit image into a square white canvas (letterbox) — guarantees white background"""
+    # Flatten transparency onto white
     if img.mode == 'RGBA':
         background = Image.new('RGB', img.size, (255, 255, 255))
         background.paste(img, mask=img.split()[3])
@@ -206,16 +192,16 @@ def make_square_image(img, size=500):
         img = img.convert('RGB')
     elif img.mode != 'RGB':
         img = img.convert('RGB')
-    
-    # Resize image to fit in square
+
+    # Resize to fit inside the square while preserving aspect ratio
     img.thumbnail((size, size), Image.Resampling.LANCZOS)
-    
-    # Center the image
+
+    # Paste centered onto a white canvas
+    square = Image.new('RGB', (size, size), (255, 255, 255))
     x = (size - img.width) // 2
     y = (size - img.height) // 2
-    
     square.paste(img, (x, y))
-    
+
     return square
 
 

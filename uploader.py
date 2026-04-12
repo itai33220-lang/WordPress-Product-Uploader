@@ -1471,6 +1471,7 @@ INSTRUCTIONS FOR INTERNATIONAL PRODUCT:
    - גלגלים = "wheels"
    - פנימית/פנימיה = "inner tube"
    - צמיג = "tire" 
+   - שרשרת = "chain"
    - שמן שרשרת = "chain lube"
    - מגנים = "protective gear"
    - קסדה = "helmet"
@@ -1478,7 +1479,7 @@ INSTRUCTIONS FOR INTERNATIONAL PRODUCT:
    - כידון = "handlebar"
    - שלדה = "frame"
    - בלמים = "brakes"
-   - הילוכים = "gears" or "speeds"
+   - הילוכים = speed count MODIFIER, NOT a product type. "12 הילוכים" means the product is 12-speed compatible.
    - מושב = "seat"
    - כיסא = "seat" or "child seat"
    - מנעול = "lock"
@@ -1486,15 +1487,18 @@ INSTRUCTIONS FOR INTERNATIONAL PRODUCT:
    - תאורה = "light"
    - בקבוק = "bottle"
    - ילדים = "kids" or "children"
+   - קסטה = "cassette"
    - Translate Hebrew product types to English
 
 4. Create optimized SEARCH TERM in ENGLISH for Google Image Search:
    - Combine brand + size + product type + descriptors
-   - Include number descriptors: "3 גלגלים" = "3 wheel", "12 הילוכים" = "12 speed"
+   - "N הילוכים" is a speed spec — append as "N-speed" modifier to the product type (e.g. שרשרת 12 הילוכים SRAM NX → "SRAM NX 12-speed chain")
+   - "N-N" tooth range (e.g. 10-52) is a cassette/sprocket spec — include it as-is (e.g. קסטה 12 הילוכים SRAM GX 10-52 → "SRAM GX 12-speed cassette 10-52")
+   - Include number descriptors: "3 גלגלים" = "3 wheel"
    - Include age/audience: "ילדים" = "kids" or "children"
    - Example: "Joe's No Flats 20 inch inner tube"
    - Example: "JDbug 3 wheel scooter kids"
-   - Example: "SRAM GX 12 speed shifter"
+   - Example: "SRAM GX 12-speed cassette 10-52"
 
 RESPOND ONLY WITH JSON (no markdown, no explanations):
 {{
@@ -1686,8 +1690,8 @@ def upload_product():
                     print(f"✅ Downloaded image: {len(img_response.content)} bytes")
                     
                     # WordPress Application Password credentials (hardcoded for now - move to config later)
-                    WP_USERNAME = "admin-uploader"
-                    WP_APP_PASSWORD = "u353jViIilgGPOo52awjVE0X"  # Remove spaces
+                    WP_USERNAME = "image-uploader"
+                    WP_APP_PASSWORD = "ajXjCAE8is5rgU4xsflaWvSP"  # Remove spaces
                     
                     # Detect MIME type
                     content_type = img_response.headers.get('content-type', 'image/jpeg')
