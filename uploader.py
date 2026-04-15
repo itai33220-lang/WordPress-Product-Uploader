@@ -9,7 +9,6 @@ from flask import Flask, render_template_string, request, jsonify, send_from_dir
 from flask_cors import CORS
 import requests
 from requests.auth import HTTPBasicAuth
-import json
 import base64
 import time
 import csv
@@ -1410,130 +1409,36 @@ def generate_content():
             # Generate meta description
             meta_description = generate_meta_description(product_name, keywords, description, anthropic_key)
             
-            # Use Claude to translate and extract product specs for image search
-            print(f"📊 Extracting product specs from: {product_name}")
-            
-            # Create different prompts based on Israeli vs International product
-            if israeli_product:
-                # For Israeli products - keep Hebrew search terms
-                specs_prompt = f"""Analyze this product name and keywords, then provide structured information in JSON format.
-
-Product Name: {product_name}
-Keywords: {keywords}
-
-INSTRUCTIONS FOR ISRAELI PRODUCT:
-1. Extract the BRAND NAME:
-   - Look for brand names in English or Hebrew (e.g., "globber" = "Globber", "קריפטונייט" = "Kryptonite")
-   - Keep brand names with proper capitalization
-   - Common brands: Globber, Kryptonite, Fox, Yedoo, etc.
-
-2. Extract SIZE/MEASUREMENT with units:
-   - Look for numbers followed by units (אינץ, inch, cm, mm, ", ')
-   - Keep the format as found (e.g., "20 אינץ", "26 inch")
-
-3. Identify PRODUCT TYPE in Hebrew:
-   - Keep product type in Hebrew as it appears
-   - Examples: מגנים, קסדה, כיסא, פנימית, צמיג
-
-4. Create optimized SEARCH TERM in HEBREW for Israeli retail sites:
-   - Combine brand + size + product type IN HEBREW
-   - Keep the original Hebrew words
-   - Example: "סט מגנים לילדים globber" or "פנימית 20 אינץ continental"
-
-RESPOND ONLY WITH JSON (no markdown, no explanations):
-{{
-    "brand": "Brand name with proper capitalization",
-    "size": "Size with unit or empty string",
-    "type": "Product type in Hebrew",
-    "search_term": "Optimized Hebrew search term for Israeli sites"
-}}"""
-            else:
-                # For international products - translate to English
-                specs_prompt = f"""Analyze this product name and keywords, then provide structured information in JSON format.
-
-Product Name: {product_name}
-Keywords: {keywords}
-
-INSTRUCTIONS FOR INTERNATIONAL PRODUCT:
-1. Extract the BRAND NAME from the product name or keywords:
-   - Look for English words that could be brand names (e.g., "joes" = "Joe's No Flats", "continental" = "Continental", "squirt" = "Squirt")
-   - Common bike brands: Joe's No Flats, Continental, Schwalbe, Maxxis, Squirt, Shimano, SRAM, etc.
-   - If you find "joes" or "joe's", the full brand is "Joe's No Flats"
-   - Keep brand names in proper English format with correct capitalization
-
-2. Extract SIZE/MEASUREMENT with units:
-   - Look for numbers followed by units (inch, אינץ, cm, mm, ", ')
-   - Format as "number unit" (e.g., "20 inch", "28 inch", "700c")
-
-3. Identify PRODUCT TYPE in English:
-   - קורקינט = "scooter" or "kick scooter"
-   - אופניים/אופני = "bike" or "bicycle"
-   - גלגלים = "wheels"
-   - פנימית/פנימיה = "inner tube"
-   - צמיג = "tire" 
-   - שרשרת = "chain"
-   - שמן שרשרת = "chain lube"
-   - מגנים = "protective gear"
-   - קסדה = "helmet"
-   - אוכף = "saddle"
-   - כידון = "handlebar"
-   - שלדה = "frame"
-   - בלמים = "brakes"
-   - הילוכים = speed count MODIFIER, NOT a product type. "12 הילוכים" means the product is 12-speed compatible.
-   - מושב = "seat"
-   - כיסא = "seat" or "child seat"
-   - מנעול = "lock"
-   - פעמון = "bell"
-   - תאורה = "light"
-   - בקבוק = "bottle"
-   - ילדים = "kids" or "children"
-   - קסטה = "cassette"
-   - Translate Hebrew product types to English
-
-4. Create optimized SEARCH TERM in ENGLISH for Google Image Search:
-   - Combine brand + size + product type + descriptors
-   - "N הילוכים" is a speed spec — append as "N-speed" modifier to the product type (e.g. שרשרת 12 הילוכים SRAM NX → "SRAM NX 12-speed chain")
-   - "N-N" tooth range (e.g. 10-52) is a cassette/sprocket spec — include it as-is (e.g. קסטה 12 הילוכים SRAM GX 10-52 → "SRAM GX 12-speed cassette 10-52")
-   - Include number descriptors: "3 גלגלים" = "3 wheel"
-   - Include age/audience: "ילדים" = "kids" or "children"
-   - Example: "Joe's No Flats 20 inch inner tube"
-   - Example: "JDbug 3 wheel scooter kids"
-   - Example: "SRAM GX 12-speed cassette 10-52"
-
-RESPOND ONLY WITH JSON (no markdown, no explanations):
-{{
-    "brand": "Full brand name in English with proper capitalization",
-    "size": "Size with unit or empty string",
-    "type": "Product type in English",
-    "search_term": "Optimized English search term"
-}}"""
-
-
+            # Step 1: Translate product name to English (or keep Hebrew for Israeli products)
+            print(f"🌐 Translating product name: {product_name}")
             try:
-                specs_response = call_claude_api(specs_prompt, anthropic_key)
-                # Parse JSON response
-                specs_response = specs_response.strip()
-                if specs_response.startswith('```'):
-                    specs_response = specs_response.split('\n', 1)[1]
-                    specs_response = specs_response.rsplit('\n```', 1)[0]
-                
-                parsed_specs = json.loads(specs_response)
-                product_specs = {
-                    'brand': parsed_specs.get('brand', ''),
-                    'size': parsed_specs.get('size', ''),
-                    'type': parsed_specs.get('type', ''),
-                    'search_term': parsed_specs.get('search_term', '')
-                }
-                print(f"📋 Extracted specs: {product_specs}")
+                if israeli_product:
+                    translation_prompt = f"""You are a cycling expert. The following is a bike product name in Hebrew.
+Translate it to a clean, accurate Hebrew search term suitable for Israeli bike retail sites.
+Keep brand names and model numbers exactly as written. Keep Hebrew product type words.
+Output only the search term, nothing else.
+
+Product: {product_name}"""
+                else:
+                    translation_prompt = f"""You are a cycling expert. The following is a bike product name, possibly in Hebrew or mixed Hebrew/English.
+Translate it to accurate English, preserving brand names, model numbers, and all numeric specs (sizes, speeds, tooth ranges, etc.) exactly as they appear.
+Do NOT add, remove, or modify any numbers, letters, suffixes, or specs — translate only the Hebrew words.
+Output only the English translation, nothing else.
+
+Product: {product_name}"""
+
+                english_name = call_claude_api(translation_prompt, anthropic_key).strip()
+                print(f"✅ Translated: {english_name}")
             except Exception as e:
-                print(f"⚠️ Error extracting specs: {e}, using basic parsing")
-                # Fallback to basic parsing
-                product_specs = {
-                    'brand': '',
-                    'size': '',
-                    'type': 'bike product',
-                    'search_term': product_name
-                }
+                print(f"⚠️ Translation failed: {e}, using original name")
+                english_name = product_name
+
+            product_specs = {
+                'brand': '',
+                'size': '',
+                'type': '',
+                'search_term': english_name
+            }
             
             # Fetch real product images from bike retailers (up to 10)
             print(f"🔍 Searching bike retailers for: {product_name}")
